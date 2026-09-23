@@ -554,12 +554,10 @@ func (rs *ResourceSchema) PatchStrategyAndKeyList() (string, []string) {
 	if isListMap && hasMergeKeys && listType == "map" {
 		// A structural-schema list-map is associative. Normalize its topology to
 		// the merge strategy expected by the strategic-merge walker.
-		mergeKeyList := mergeKeys.([]interface{})
-		mergeKeyStrings := make([]string, len(mergeKeyList))
-		for i, key := range mergeKeyList {
-			mergeKeyStrings[i] = key.(string)
+		mergeKeyStrings, ok := extensionStringSlice(mergeKeys)
+		if ok {
+			return "merge", mergeKeyStrings
 		}
-		return "merge", mergeKeyStrings
 	}
 
 	ps, found := rs.Schema.Extensions[kubernetesPatchStrategyExtensionKey]
@@ -573,6 +571,22 @@ func (rs *ResourceSchema) PatchStrategyAndKeyList() (string, []string) {
 		return ps.(string), []string{}
 	}
 	return ps.(string), []string{mk.(string)}
+}
+
+func extensionStringSlice(value interface{}) ([]string, bool) {
+	values, ok := value.([]interface{})
+	if !ok {
+		return nil, false
+	}
+	strings := make([]string, len(values))
+	for i, value := range values {
+		stringValue, ok := value.(string)
+		if !ok {
+			return nil, false
+		}
+		strings[i] = stringValue
+	}
+	return strings, true
 }
 
 // PatchStrategyAndKey returns the patch strategy and merge key extensions

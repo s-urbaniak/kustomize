@@ -80,6 +80,28 @@ func TestPatchStrategyAndKeyList(t *testing.T) {
 			keys:     []string{"name"},
 		},
 		{
+			name: "legacy pair is used when CRD keys have the wrong type",
+			extensions: map[string]interface{}{
+				"x-kubernetes-list-type":       "map",
+				"x-kubernetes-list-map-keys":   "name",
+				"x-kubernetes-patch-strategy":  "merge",
+				"x-kubernetes-patch-merge-key": "name",
+			},
+			strategy: "merge",
+			keys:     []string{"name"},
+		},
+		{
+			name: "legacy pair is used when a CRD key is not a string",
+			extensions: map[string]interface{}{
+				"x-kubernetes-list-type":       "map",
+				"x-kubernetes-list-map-keys":   []interface{}{"name", 1},
+				"x-kubernetes-patch-strategy":  "merge",
+				"x-kubernetes-patch-merge-key": "name",
+			},
+			strategy: "merge",
+			keys:     []string{"name"},
+		},
+		{
 			name: "atomic CRD list is not associative",
 			extensions: map[string]interface{}{
 				"x-kubernetes-list-type": "atomic",
