@@ -549,19 +549,23 @@ func (rs *ResourceSchema) Field(field string) *ResourceSchema {
 
 // PatchStrategyAndKeyList returns the patch strategy and complete merge key list
 func (rs *ResourceSchema) PatchStrategyAndKeyList() (string, []string) {
+	listType, isListMap := rs.Schema.Extensions[kubernetesListTypeExtensionKey]
+	mergeKeys, hasMergeKeys := rs.Schema.Extensions[kubernetesMergeKeyMapList]
+	if isListMap && hasMergeKeys && listType == "map" {
+		// A structural-schema list-map is associative. Normalize its topology to
+		// the merge strategy expected by the strategic-merge walker.
+		mergeKeyList := mergeKeys.([]interface{})
+		mergeKeyStrings := make([]string, len(mergeKeyList))
+		for i, key := range mergeKeyList {
+			mergeKeyStrings[i] = key.(string)
+		}
+		return "merge", mergeKeyStrings
+	}
+
 	ps, found := rs.Schema.Extensions[kubernetesPatchStrategyExtensionKey]
 	if !found {
 		// empty patch strategy
 		return "", []string{}
-	}
-	mkList, found := rs.Schema.Extensions[kubernetesMergeKeyMapList]
-	if found {
-		// mkList is []interface, convert to []string
-		mkListStr := make([]string, len(mkList.([]interface{})))
-		for i, v := range mkList.([]interface{}) {
-			mkListStr[i] = v.(string)
-		}
-		return ps.(string), mkListStr
 	}
 	mk, found := rs.Schema.Extensions[kubernetesMergeKeyExtensionKey]
 	if !found {
@@ -607,6 +611,10 @@ const (
 	// kubernetesMergeKeyMapList is the list of merge keys when there needs to be multiple
 	// -- the extension is an array of strings
 	kubernetesMergeKeyMapList = "x-kubernetes-list-map-keys"
+
+	// kubernetesListTypeExtensionKey is the list topology extension used by
+	// structural schemas.
+	kubernetesListTypeExtensionKey = "x-kubernetes-list-type"
 
 	// groupKey is the key to lookup the group from the GVK extension
 	groupKey = "group"
